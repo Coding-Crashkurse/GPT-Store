@@ -4,9 +4,14 @@ services:
   db:
     image: postgres:latest
     env_file:
-      - .env
+      - .env # Verweist auf Ihre .env-Datei
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -15,9 +20,10 @@ services:
     ports:
       - "8000:80"
     env_file:
-      - .env
+      - .env # Verweist ebenfalls auf Ihre .env-Datei
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

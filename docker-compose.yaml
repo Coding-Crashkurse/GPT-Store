@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:latest
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  fastapi:
+    build: .
+    ports:
+      - "8000:80"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

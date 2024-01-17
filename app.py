@@ -1,50 +1,71 @@
-from fastapi import FastAPI, Path
-
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from fastapi import FastAPI, Path, HTTPException, Depends
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 import os
+from models import (
+    Base,
+    YouTubeVideo,
+    UdemyCourse,
+)  # Stellen Sie sicher, dass diese Modelle definiert sind
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@db/{os.getenv('POSTGRES_DB')}"
+# Datenbank-URL aus den Umgebungsvariablen laden
+DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@db:5432/{os.getenv('POSTGRES_DB')}"
 
-
+# SQLAlchemy Engine und Sessionmaker erstellen
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
-
-class YouTubeVideo(Base):
-    __tablename__ = "youtube_videos"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(String)
-    timestamp = Column(DateTime)
-
-
-class UdemyCourse(Base):
-    __tablename__ = "udemy_courses"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    promocode = Column(String)
-
-
+# Erstellen der Datenbanktabellen
 Base.metadata.create_all(bind=engine)
+
+# FastAPI App-Instanz
 app = FastAPI()
 
 
-@app.get("/promotions")
-async def read_promotions():
-    return {"message": "Promotions data"}
+# Dependency, um eine Datenbanksession zu bekommen
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
+# Endpoint, um YouTube-Videos basierend auf der Sprache abzurufen
 @app.get("/youtube/{language}")
 async def read_youtube(
     language: str = Path(
         ..., title="The language of the content", enum=["all", "english", "german"]
-    )
+    ),
+    db: Session = Depends(get_db),
 ):
-    return {"message": f"Youtube content in {language} language"}
+    if language == "all":
+        videos = db.query(YouTubeVideo).all()
+    else:
+        videos = db.query(YouTubeVideo).filter(YouTubeVideo.language == language).all()
+
+    if not videos:
+        raise HTTPException(status_code=404, detail="Videos not found")
+
+    return {
+        "videos": [
+            dict(
+                title=video.title,
+                description=video.description,
+                timestamp=video.timestamp,
+                language=video.language,
+            )
+            for video in videos
+        ]
+    }
+
+
+# Einfacher Endpoint, um Promotions-Daten abzurufen
+@app.get("/promotions")
+async def read_promotions():
+    return {"message": "Promotions data"}
+

@@ -6,27 +6,19 @@ from models import (
     Base,
     YouTubeVideo,
     UdemyCourse,
-)  # Stellen Sie sicher, dass diese Modelle definiert sind
+)
 
-from dotenv import load_dotenv
 
-load_dotenv()
+CONNECTION_STRING = "postgresql+psycopg2://myuser:mypw@postgres:5432/mydb"
 
-# Datenbank-URL aus den Umgebungsvariablen laden
-DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@db:5432/{os.getenv('POSTGRES_DB')}"
-
-# SQLAlchemy Engine und Sessionmaker erstellen
-engine = create_engine(DATABASE_URL)
+engine = create_engine(CONNECTION_STRING)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Erstellen der Datenbanktabellen
 Base.metadata.create_all(bind=engine)
 
-# FastAPI App-Instanz
 app = FastAPI()
 
 
-# Dependency, um eine Datenbanksession zu bekommen
 def get_db():
     db = SessionLocal()
     try:
@@ -56,7 +48,6 @@ async def read_youtube(
             dict(
                 title=video.title,
                 description=video.description,
-                timestamp=video.timestamp,
                 language=video.language,
             )
             for video in videos
@@ -64,8 +55,15 @@ async def read_youtube(
     }
 
 
-# Einfacher Endpoint, um Promotions-Daten abzurufen
 @app.get("/promotions")
 async def read_promotions():
-    return {"message": "Promotions data"}
+    session = Session()
+    try:
+        promotions = session.query(UdemyCourse).all()
+        return promotions
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        session.close()
+
 

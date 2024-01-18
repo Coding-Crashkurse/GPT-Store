@@ -1,10 +1,4 @@
 from sqlalchemy import create_engine
-import os
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@127.0.0.1:5432/{os.getenv('POSTGRES_DB')}"
-print(DATABASE_URL)
-engine = create_engine(DATABASE_URL)
+CONNECTION_STRING = "postgresql+psycopg2://myuser:mypw@127.0.0.1:5432/mydb"
+engine = create_engine(CONNECTION_STRING)
